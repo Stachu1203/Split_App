@@ -40,12 +40,12 @@ def solve(debtors,creditors):
     while len(s_debtors) > 0 and len(s_creditors) > 0:
         
         if abs(s_debtors[0][1]) <= abs(s_creditors[0][1]):
-            transfers+=[(s_debtors[0][0],s_creditors[0][0],abs(s_debtors[0][1]))]
+            transfers+=[{"from": s_debtors[0][0], "to": s_creditors[0][0], "amount": abs(s_debtors[0][1])}]
             s_creditors[0][1] -= abs(s_debtors[0][1])
             s_debtors.remove(s_debtors[0])
             s_creditors =  sorted(s_creditors, key = lambda x: x[1], reverse=True)
         else:
-            transfers+=[(s_debtors[0][0],s_creditors[0][0],abs(s_creditors[0][1]))]
+            transfers+=[{"from": s_debtors[0][0], "to": s_creditors[0][0], "amount": abs(s_creditors[0][1])}]
             s_debtors[0][1] += s_creditors[0][1]
             s_creditors.remove(s_creditors[0])
             s_debtors =  sorted(s_debtors, key = lambda x: x[1])

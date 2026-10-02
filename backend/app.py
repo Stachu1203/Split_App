@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, request
 from logic import calculate, solve
+from flask_cors import CORS
 app = Flask(__name__)
+CORS(app)
 
 @app.route('/api/splitapp', methods=['POST'])
 def simplify_debts():
