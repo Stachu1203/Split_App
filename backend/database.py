@@ -1,5 +1,5 @@
 import sqlite3
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash,check_password_hash
 
 def get_db_connection():
     conn = sqlite3.connect('splitapp.db')   
@@ -29,3 +29,21 @@ def create_user(username, password):
         return False
     finally:
         conn.close()
+
+
+def verify_user(username, password):
+        conn = get_db_connection()
+        
+        user = conn.execute('SELECT password_hash FROM users WHERE username = ?',(username,)).fetchone()
+        conn.close()
+
+        if user == None:
+             return False
+
+        if check_password_hash(user['password_hash'],password):
+             return True
+
+        return False
+
+
+

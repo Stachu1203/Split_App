@@ -1,4 +1,7 @@
 import { useState } from "react"
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import Register from './Register';
+import Login from './Login';
 
 function App() {
   const mockData = [
@@ -35,6 +38,7 @@ function App() {
     const data = await response.json();
 
     setTransactions(data);
+
   };
 
    
@@ -49,7 +53,21 @@ function App() {
       ))}
       
       <button onClick={handleCalculate}>Rozlicz</button>
+
+      <Router>
+    
+    <nav>
+      <Link to="/login">Zaloguj się</Link> | <Link to="/register">Zarejestruj się</Link>
+    </nav>
+
+    
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+    </Routes>
+  </Router>
     </>
+    
   )
 }
 
