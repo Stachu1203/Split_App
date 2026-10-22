@@ -2,8 +2,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from logic import calculate, solve
-from backend.database import create_user,verify_user
-from backend.database import init_db, get_db_connection
+from database import create_user,verify_user
+from database import init_db, get_db_connection
 
 
 app = Flask(__name__)
