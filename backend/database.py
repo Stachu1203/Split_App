@@ -16,6 +16,57 @@ def init_db():
     )
     ''')
     conn.commit()
+
+    conn.execute('''
+    CREATE TABLE IF NOT EXISTS trips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    created_by INTEGER NOT NULL,
+    FOREIGN KEY (created_by)
+    REFERENCES users(id)
+    ON DELETE CASCADE 
+    )
+    ''')
+    conn.commit()
+
+    conn.execute('''
+    CREATE TABLE IF NOT EXISTS trip_members (
+    trip_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    PRIMARY KEY (trip_id, user_id),
+    FOREIGN KEY (trip_id) 
+    REFERENCES trips(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) 
+    REFERENCES users(id) ON DELETE CASCADE
+    )
+    ''')
+    conn.commit()
+
+    conn.execute('''
+    CREATE TABLE IF NOT EXISTS expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trip_id INTEGER NOT NULL,
+    payer_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    total_amount REAL NOT NULL,
+    FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+    FOREIGN KEY (payer_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    ''')
+    conn.commit()
+
+    conn.execute('''
+    CREATE TABLE IF NOT EXISTS expense_splits (
+    expense_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    amount_owed REAL NOT NULL,
+    PRIMARY KEY (expense_id, user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE
+    )
+    ''')
+    conn.commit()
+
     conn.close()
 
 def create_user(username, password):
