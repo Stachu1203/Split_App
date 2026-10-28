@@ -1,8 +1,10 @@
 import sqlite3
 from werkzeug.security import generate_password_hash,check_password_hash
+from logic import calculate
 
 def get_db_connection():
-    conn = sqlite3.connect('splitapp.db')   
+    conn = sqlite3.connect('splitapp.db')
+    conn.execute("PRAGMA foreign_keys = ON;")   
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -67,6 +69,21 @@ def init_db():
     ''')
     conn.commit()
 
+    conn.execute('''
+    CREATE TABLE IF NOT EXISTS settlements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trip_id INTEGER NOT NULL,
+    payer_id INTEGER NOT NULL,
+    payee_id INTEGER NOT NULL,
+    amount REAL NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (trip_id) REFERENCES trips(id),
+    FOREIGN KEY (payer_id) REFERENCES users(id),
+    FOREIGN KEY (payee_id) REFERENCES users(id)
+    )
+    ''')
+    conn.commit()
+
     conn.close()
 
 def create_user(username, password):
@@ -81,6 +98,20 @@ def create_user(username, password):
     finally:
         conn.close()
 
+def get_username_by_id(user_id):
+     conn = get_db_connection()
+     cursor = conn.cursor()
+     
+     try:
+          cursor.execute("SELECT username FROM users WHERE id = ?",(user_id,))
+          row = cursor.fetchone()
+          if row:
+            return row[0]  
+     finally:
+          conn.close()
+
+     return None
+     
 
 def verify_user(username, password):
         conn = get_db_connection()
@@ -208,6 +239,121 @@ def get_trip_users(trip_id):
      finally:
           conn.close()
      return tripUsersList
+
+def get_trip_data_for_calculation(trip_id):
+     
+     if trip_id is None:
+          return []
+
+     conn = get_db_connection()
+     cursor = conn.cursor()
+
+     tmp_list = []
+     tmp_settlements = []
+     expenses_dict = {}
+     id_set = set()
+
+     try:
+          cursor.execute('SELECT expenses.id, payer.username AS payer_name, expenses.total_amount, borrower.username AS borrower_name, expense_splits.amount_owed FROM expenses JOIN users AS payer ON expenses.payer_id = payer.id JOIN expense_splits ON expenses.id = expense_splits.expense_id JOIN users AS borrower ON expense_splits.user_id = borrower.id WHERE expenses.trip_id = ?', (trip_id,))
+          tmp_list = cursor.fetchall()
+          cursor.execute("SELECT settlements.id, payer.username AS payer_name, settlements.amount, payee.username AS payee_name FROM settlements JOIN users AS payer ON settlements.payer_id = payer.id JOIN users AS payee ON settlements.payee_id = payee.id WHERE settlements.trip_id = ?", (trip_id,))
+          tmp_settlements = cursor.fetchall()
+     finally:
+          conn.close()
+
+     for expense_id, payer,total_amount, borrower, amount_owed in tmp_list:
+          if expense_id not in id_set:
+               id_set.add(expense_id)
+               expenses_dict[expense_id] = {
+                    "id": expense_id,
+                    "payer": payer,
+                    "total_amount": total_amount,
+                    "borrowers": []
+               }
+          expenses_dict[expense_id]["borrowers"].append({
+               "name": borrower,
+               "owes": amount_owed
+          })
+
+     final_list = list(expenses_dict.values())   
+
+     for settlement_id,payer_name, amount, payee_name in tmp_settlements:
+          final_list.append({"id": f"settlement_{settlement_id}", "payer": payer_name, "total_amount": amount, "borrowers":[{"name":payee_name, "owes": amount}]})
+
+
+     return final_list
+
+def add_settlement(trip_id,payer_id,payee_id, amount):
+     
+     if trip_id is None or payer_id is None or payee_id is None or amount<=0:
+          return False
+
+     conn = get_db_connection()
+
+     try:
+          conn.execute('INSERT INTO settlements (trip_id,payer_id,payee_id,amount) VALUES (?,?,?,?)',(trip_id,payer_id,payee_id,amount))
+          conn.commit()
+     except sqlite3.IntegrityError:
+          conn.rollback()
+          return False
+     finally:
+          conn.close()
+
+     return True
+
+
+def remove_users_from_trip(trip_id,user_id):
+
+     if trip_id is None or user_id is None:
+          return False
+     
+     borrowers,creditors = calculate(get_trip_data_for_calculation(trip_id))
+
+     username = get_username_by_id(user_id)
+     if not username:
+          return False
+
+     user_balance = 0.0
+
+     if username in borrowers:
+          user_balance = borrowers[username][1]
+     elif username in creditors:
+          user_balance = creditors[username][1]
+
+     if round(user_balance, 2) != 0:
+          return False
+
+     conn = get_db_connection()
+     try:
+          conn.execute("DELETE FROM trip_users WHERE trip_id = ? AND user_id = ?", (trip_id,user_id))
+          conn.commit()
+     except sqlite3.IntegrityError:
+          conn.rollback()
+          return False
+     finally:
+          conn.close()
+
+     return True
+
+def delete_expense(expense_id):
+     if expense_id is None:
+        return False
+        
+     conn = get_db_connection()
+     try:
+         conn.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
+         conn.commit()
+     except sqlite3.Error:
+         conn.rollback()
+         return False
+     finally:
+         conn.close()
+        
+     return True
+
+     
+     
+
      
 
 
